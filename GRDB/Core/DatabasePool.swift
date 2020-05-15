@@ -126,7 +126,11 @@ public final class DatabasePool: DatabaseWriter {
             }
         }
         
+	#if os(Linux)
+	// Get rid of this
+	#else
         setupSuspension()
+	#endif
         
         // Be a nice iOS citizen, and don't consume too much memory
         // See https://github.com/groue/GRDB.swift/#memory-management
@@ -281,6 +285,9 @@ extension DatabasePool: DatabaseReader {
         writer.resume()
     }
     
+    #if os(Linux)
+    // Let's get rid of suspension
+    #else
     private func setupSuspension() {
         if configuration.observesSuspensionNotifications {
             let center = NotificationCenter.default
@@ -296,6 +303,8 @@ extension DatabasePool: DatabaseReader {
                 object: nil)
         }
     }
+    #endif
+
     
     @objc
     private func suspend(_ notification: Notification) {
