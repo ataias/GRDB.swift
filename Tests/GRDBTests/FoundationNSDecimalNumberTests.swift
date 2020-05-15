@@ -1,5 +1,6 @@
 import XCTest
 import GRDB
+import Foundation
 
 class FoundationNSDecimalNumberTests: GRDBTestCase {
 

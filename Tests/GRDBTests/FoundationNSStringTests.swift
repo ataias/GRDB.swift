@@ -1,5 +1,8 @@
 import XCTest
 import GRDB
+#if os(Linux)
+import Foundation
+#endif
 
 class FoundationNSStringTests: GRDBTestCase {
     
