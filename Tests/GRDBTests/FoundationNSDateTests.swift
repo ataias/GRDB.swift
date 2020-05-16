@@ -1,8 +1,9 @@
 import XCTest
 import GRDB
+import Foundation
 
 class FoundationNSDateTests : GRDBTestCase {
-    
+
     override func setup(_ dbWriter: DatabaseWriter) throws {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("createDates") { db in
@@ -18,7 +19,7 @@ class FoundationNSDateTests : GRDBTestCase {
     func testNSDate() throws {
         let dbQueue = try makeDatabaseQueue()
         try dbQueue.inDatabase { db in
-            
+
             let calendar = Calendar(identifier: .gregorian)
             let dateComponents = NSDateComponents()
             dateComponents.year = 1973
@@ -28,12 +29,12 @@ class FoundationNSDateTests : GRDBTestCase {
             dateComponents.minute = 11
             dateComponents.second = 12
             dateComponents.nanosecond = 123_456_789
-            
+
             do {
                 let date = calendar.date(from: dateComponents as DateComponents)!
                 try db.execute(sql: "INSERT INTO dates (creationDate) VALUES (?)", arguments: [date])
             }
-            
+
             do {
                 let date = try NSDate.fetchOne(db, sql: "SELECT creationDate FROM dates")!
                 // All components must be preserved, but nanosecond since ISO-8601 stores milliseconds.
@@ -54,15 +55,15 @@ class FoundationNSDateTests : GRDBTestCase {
             try db.execute(
                 sql: "INSERT INTO dates (id, creationDate) VALUES (?,?)",
                 arguments: [1, NSDate().addingTimeInterval(-1)])
-            
+
             try db.execute(
                 sql: "INSERT INTO dates (id) VALUES (?)",
                 arguments: [2])
-            
+
             try db.execute(
                 sql: "INSERT INTO dates (id, creationDate) VALUES (?,?)",
                 arguments: [3, NSDate().addingTimeInterval(1)])
-            
+
             let ids = try Int.fetchAll(db, sql: "SELECT id FROM dates ORDER BY creationDate")
             XCTAssertEqual(ids, [1,2,3])
         }
@@ -71,19 +72,19 @@ class FoundationNSDateTests : GRDBTestCase {
     func testNSDateFromUnparsableString() {
         XCTAssertTrue(NSDate.fromDatabaseValue("foo".databaseValue) == nil)
     }
-    
+
     func testNSDateDoesNotAcceptFormatHM() {
         XCTAssertTrue(NSDate.fromDatabaseValue("01:02".databaseValue) == nil)
     }
-    
+
     func testNSDateDoesNotAcceptFormatHMS() {
         XCTAssertTrue(NSDate.fromDatabaseValue("01:02:03".databaseValue) == nil)
     }
-    
+
     func testNSDateDoesNotAcceptFormatHMSS() {
         XCTAssertTrue(NSDate.fromDatabaseValue("01:02:03.00456".databaseValue) == nil)
     }
-    
+
     func testNSDateAcceptsFormatYMD() throws {
         let dbQueue = try makeDatabaseQueue()
         try dbQueue.inDatabase { db in
@@ -166,10 +167,10 @@ class FoundationNSDateTests : GRDBTestCase {
             try db.execute(
                 sql: "INSERT INTO dates (creationDate) VALUES (?)",
                 arguments: [1437526920])
-            
+
             let string = try String.fetchOne(db, sql: "SELECT datetime(creationDate, 'unixepoch') from dates")!
             XCTAssertEqual(string, "2015-07-22 01:02:00")
-            
+
             let date = try NSDate.fetchOne(db, sql: "SELECT creationDate from dates")!
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -182,7 +183,7 @@ class FoundationNSDateTests : GRDBTestCase {
             XCTAssertEqual(calendar.component(.nanosecond, from: date as Date), 0)
         }
     }
-    
+
     func testNSDateAcceptsFormatIso8601YMD_HM() throws {
         let dbQueue = try makeDatabaseQueue()
         try dbQueue.inDatabase { db in

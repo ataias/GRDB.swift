@@ -1,11 +1,9 @@
 import XCTest
 import GRDB
-#if os(Linux)
 import Foundation
-#endif
 
 class FoundationNSStringTests: GRDBTestCase {
-    
+
     func testNSStringDatabaseRoundTrip() throws {
         let dbQueue = try makeDatabaseQueue()
         func roundTrip(_ value: NSString) throws -> Bool {
@@ -15,14 +13,14 @@ class FoundationNSStringTests: GRDBTestCase {
             }
             return back == value
         }
-        
+
         XCTAssertTrue(try roundTrip(NSString(string: "")))
         XCTAssertTrue(try roundTrip(NSString(string: "foo")))
         XCTAssertTrue(try roundTrip(NSString(string: "'fooéı👨👨🏿🇫🇷🇨🇮'")))
     }
-    
+
     func testNSStringDatabaseValueRoundTrip() {
-        
+
         func roundTrip(_ value: NSString) -> Bool
         {
             let dbValue = value.databaseValue
@@ -38,12 +36,12 @@ class FoundationNSStringTests: GRDBTestCase {
         XCTAssertTrue(roundTrip(NSString(string: "foo")))
         XCTAssertTrue(roundTrip(NSString(string: "'fooéı👨👨🏿🇫🇷🇨🇮'")))
     }
-    
+
     func testNSStringFromStringDatabaseValueSuccess() {
         let databaseValue_String = "foo".databaseValue
         XCTAssertEqual(NSString.fromDatabaseValue(databaseValue_String), "foo")
     }
-    
+
     func testNSStringFromDatabaseValueFailure() {
         let databaseValue_Null = DatabaseValue.null
         let databaseValue_Int64 = Int64(1).databaseValue
@@ -54,5 +52,5 @@ class FoundationNSStringTests: GRDBTestCase {
         XCTAssertNil(NSString.fromDatabaseValue(databaseValue_Double))
         XCTAssertEqual(NSString.fromDatabaseValue(databaseValue_Blob), "bar")
     }
-    
+
 }

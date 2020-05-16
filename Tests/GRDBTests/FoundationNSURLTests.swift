@@ -1,8 +1,9 @@
 import XCTest
 import GRDB
+import Foundation
 
 class FoundationNSURLTests: GRDBTestCase {
-    
+
     func testNSURLDatabaseRoundTrip() throws {
         let dbQueue = try makeDatabaseQueue()
         func roundTrip(_ value: NSURL) throws -> Bool {
@@ -12,13 +13,13 @@ class FoundationNSURLTests: GRDBTestCase {
             }
             return back == value
         }
-        
+
         XCTAssertTrue(try roundTrip(NSURL(string: "https://github.com/groue/GRDB.swift")!))
         XCTAssertTrue(try roundTrip(NSURL(fileURLWithPath: NSTemporaryDirectory())))
     }
-    
+
     func testNSURLDatabaseValueRoundTrip() {
-        
+
         func roundTrip(_ value: NSURL) -> Bool
         {
             let dbValue = value.databaseValue
@@ -29,11 +30,11 @@ class FoundationNSURLTests: GRDBTestCase {
             }
             return back.isEqual(value)
         }
-        
+
         XCTAssertTrue(roundTrip(NSURL(string: "https://github.com/groue/GRDB.swift")!))
         XCTAssertTrue(roundTrip(NSURL(fileURLWithPath: NSTemporaryDirectory())))
     }
-    
+
     func testNSURLFromDatabaseValueFailure() {
         let databaseValue_Null = DatabaseValue.null
         let databaseValue_Int64 = Int64(1).databaseValue
@@ -44,5 +45,5 @@ class FoundationNSURLTests: GRDBTestCase {
         XCTAssertNil(NSURL.fromDatabaseValue(databaseValue_Double))
         XCTAssertEqual(NSURL.fromDatabaseValue(databaseValue_Blob)!.absoluteString, "bar")
     }
-    
+
 }

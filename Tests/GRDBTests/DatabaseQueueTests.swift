@@ -3,7 +3,7 @@ import Dispatch
 import GRDB
 
 class DatabaseQueueTests: GRDBTestCase {
-    
+
     // Until SPM tests can load resources, disable this test for SPM.
     #if !SWIFT_PACKAGE
     func testInvalidFileFormat() throws {
@@ -24,7 +24,7 @@ class DatabaseQueueTests: GRDBTestCase {
         }
     }
     #endif
-    
+
     func testAddRemoveFunction() throws {
         // Adding a function and then removing it should succeed
         let dbQueue = try makeDatabaseQueue()
@@ -81,47 +81,47 @@ class DatabaseQueueTests: GRDBTestCase {
             XCTAssertEqual(error.description.lowercased(), "sqlite error 1 with statement `create table files_fail (name text collate test_collation_foo)`: no such collation sequence: test_collation_foo")
         }
     }
-    
+
     func testAllowsUnsafeTransactions() throws {
         dbConfiguration.allowsUnsafeTransactions = true
         let dbQueue = try makeDatabaseQueue()
-        
+
         try dbQueue.writeWithoutTransaction { db in
             try db.beginTransaction()
         }
-        
+
         try dbQueue.writeWithoutTransaction { db in
             try db.commit()
         }
     }
-    
+
     func testDefaultLabel() throws {
         let dbQueue = try makeDatabaseQueue()
         XCTAssertEqual(dbQueue.configuration.label, nil)
         dbQueue.inDatabase { db in
             XCTAssertEqual(db.configuration.label, nil)
-            
+
             // This test CAN break in future releases: the dispatch queue labels
             // are documented to be a debug-only tool.
-            let label = String(utf8String: __dispatch_queue_get_label(nil))
+            let label = String(utf8String: DispatchQueue.main.label)
             XCTAssertEqual(label, "GRDB.DatabaseQueue")
         }
     }
-    
+
     func testCustomLabel() throws {
         dbConfiguration.label = "Toreador"
         let dbQueue = try makeDatabaseQueue()
         XCTAssertEqual(dbQueue.configuration.label, "Toreador")
         dbQueue.inDatabase { db in
             XCTAssertEqual(db.configuration.label, "Toreador")
-            
+
             // This test CAN break in future releases: the dispatch queue labels
             // are documented to be a debug-only tool.
-            let label = String(utf8String: __dispatch_queue_get_label(nil))
+            let label = String(utf8String: DispatchQueue.main.label)
             XCTAssertEqual(label, "Toreador")
         }
     }
-    
+
     func testTargetQueue() throws {
         // dispatchPrecondition(condition:) availability
         if #available(OSX 10.12, iOS 10.0, tvOS 10.0, *) {
@@ -135,10 +135,10 @@ class DatabaseQueueTests: GRDBTestCase {
                     dispatchPrecondition(condition: .onQueue(targetQueue))
                 }
             }
-            
+
             // background queue
             try test(targetQueue: .global(qos: .background))
-            
+
             // main queue
             let expectation = self.expectation(description: "main")
             DispatchQueue.global(qos: .default).async {
@@ -148,7 +148,7 @@ class DatabaseQueueTests: GRDBTestCase {
             waitForExpectations(timeout: 1, handler: nil)
         }
     }
-    
+
     func testQoS() throws {
         // dispatchPrecondition(condition:) availability
         if #available(OSX 10.12, iOS 10.0, tvOS 10.0, *) {
@@ -170,11 +170,12 @@ class DatabaseQueueTests: GRDBTestCase {
                 // > because DISPATCH_QUEUE_OVERCOMMIT is not a public API. I don't
                 // > know of a way to get a reference to the overcommit queue using
                 // > only public APIs.
-                let DISPATCH_QUEUE_OVERCOMMIT: UInt = 2
-                let targetQueue = __dispatch_get_global_queue(
-                    Int(qos.qosClass.rawValue.rawValue),
-                    DISPATCH_QUEUE_OVERCOMMIT)
-                
+                // let DISPATCH_QUEUE_OVERCOMMIT: UInt = 2
+                // let targetQueue = __dispatch_get_global_queue(
+                //     Int(qos.qosClass.rawValue.rawValue),
+                //     DISPATCH_QUEUE_OVERCOMMIT)
+                let targetQueue = DispatchQueue.global()
+
                 dbConfiguration.qos = qos
                 let dbQueue = try makeDatabaseQueue()
                 try dbQueue.write { _ in
@@ -184,7 +185,7 @@ class DatabaseQueueTests: GRDBTestCase {
                     dispatchPrecondition(condition: .onQueue(targetQueue))
                 }
             }
-            
+
             try test(qos: .background)
             try test(qos: .userInitiated)
         }

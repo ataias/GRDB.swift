@@ -112,3 +112,5 @@ Tests/SPM/Packages
 
 # Ruby
 .ruby-version
+
+out.txt

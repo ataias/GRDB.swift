@@ -1,8 +1,9 @@
 import XCTest
+import Foundation
 @testable import GRDB
 
 class DatabaseSnapshotTests: GRDBTestCase {
-    
+
     /// A helper class
     private class Counter {
         let dbPool: DatabasePool
@@ -12,31 +13,31 @@ class DatabaseSnapshotTests: GRDBTestCase {
                 try db.execute(sql: "CREATE TABLE counter(id INTEGER PRIMARY KEY)")
             }
         }
-        
+
         func increment(_ db: Database) throws {
             try db.execute(sql: "INSERT INTO counter DEFAULT VALUES")
         }
-        
+
         func value(_ db: Database) throws -> Int {
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM counter")!
         }
     }
-    
+
     // MARK: - Creation
-    
+
     func testSnapshotCanReadBeforeDatabaseModification() throws {
         let dbPool = try makeDatabasePool()
         let snapshot = try dbPool.makeSnapshot()
         try XCTAssertEqual(snapshot.read { try $0.tableExists("foo") }, false)
     }
-    
+
     func testSnapshotCreatedFromMainQueueCanRead() throws {
         let dbPool = try makeDatabasePool()
         let counter = try Counter(dbPool: dbPool)
         let snapshot = try dbPool.makeSnapshot()
         try XCTAssertEqual(snapshot.read(counter.value), 0)
     }
-    
+
     func testSnapshotCreatedFromWriterOutsideOfTransactionCanRead() throws {
         let dbPool = try makeDatabasePool()
         let counter = try Counter(dbPool: dbPool)
@@ -48,7 +49,7 @@ class DatabaseSnapshotTests: GRDBTestCase {
         }
         try XCTAssertEqual(snapshot.read(counter.value), 0)
     }
-    
+
     func testSnapshotCreatedFromReaderTransactionCanRead() throws {
         let dbPool = try makeDatabasePool()
         let counter = try Counter(dbPool: dbPool)
@@ -58,7 +59,7 @@ class DatabaseSnapshotTests: GRDBTestCase {
         }
         try XCTAssertEqual(snapshot.read(counter.value), 0)
     }
-    
+
     func testSnapshotCreatedFromReaderOutsideOfTransactionCanRead() throws {
         let dbPool = try makeDatabasePool()
         let counter = try Counter(dbPool: dbPool)
@@ -68,7 +69,7 @@ class DatabaseSnapshotTests: GRDBTestCase {
         }
         try XCTAssertEqual(snapshot.read(counter.value), 0)
     }
-    
+
     func testSnapshotCreatedFromTransactionObserver() throws {
         // Creating a snapshot from a didCommit callback is an important use
         // case. But we know SQLite snapshots created with
@@ -83,7 +84,7 @@ class DatabaseSnapshotTests: GRDBTestCase {
                 self.dbPool = dbPool
                 self.snapshot = snapshot
             }
-            
+
             func observes(eventsOfKind eventKind: DatabaseEventKind) -> Bool { false }
             func databaseDidChange(with event: DatabaseEvent) { }
             func databaseDidCommit(_ db: Database) {
@@ -99,9 +100,9 @@ class DatabaseSnapshotTests: GRDBTestCase {
         try dbPool.write(counter.increment)
         try XCTAssertEqual(observer.snapshot.read(counter.value), 1)
     }
-    
+
     // MARK: - Behavior
-    
+
     func testSnapshotIsReadOnly() throws {
         let dbPool = try makeDatabasePool()
         let snapshot = try dbPool.makeSnapshot()
@@ -112,7 +113,7 @@ class DatabaseSnapshotTests: GRDBTestCase {
             XCTFail("Expected error")
         } catch is DatabaseError { }
     }
-    
+
     func testSnapshotIsImmutable() throws {
         let dbPool = try makeDatabasePool()
         let counter = try Counter(dbPool: dbPool)
@@ -128,20 +129,20 @@ class DatabaseSnapshotTests: GRDBTestCase {
             try XCTAssertEqual(dbPool.read(counter.value), 2)
         }
     }
-    
+
     // MARK: - Functions
-    
+
     func testSnapshotInheritPoolFunctions() throws {
         let dbPool = try makeDatabasePool()
         let function = DatabaseFunction("foo", argumentCount: 0, pure: true) { _ in return "foo" }
         dbPool.add(function: function)
-        
+
         let snapshot = try dbPool.makeSnapshot()
         try snapshot.read { db in
             try XCTAssertEqual(String.fetchOne(db, sql: "SELECT foo()")!, "foo")
         }
     }
-    
+
     func testSnapshotFunctions() throws {
         let dbPool = try makeDatabasePool()
         let snapshot = try dbPool.makeSnapshot()
@@ -151,29 +152,29 @@ class DatabaseSnapshotTests: GRDBTestCase {
             try XCTAssertEqual(String.fetchOne(db, sql: "SELECT foo()")!, "foo")
         }
     }
-    
+
     // MARK: - Collations
-    
+
     func testSnapshotInheritPoolCollations() throws {
         let dbPool = try makeDatabasePool()
         let collation = DatabaseCollation("reverse") { (string1, string2) in
             return (string1 == string2) ? .orderedSame : ((string1 < string2) ? .orderedDescending : .orderedAscending)
         }
         dbPool.add(collation: collation)
-        
+
         try dbPool.write { db in
             try db.execute(sql: "CREATE TABLE items (text TEXT)")
             try db.execute(sql: "INSERT INTO items (text) VALUES ('a')")
             try db.execute(sql: "INSERT INTO items (text) VALUES ('b')")
             try db.execute(sql: "INSERT INTO items (text) VALUES ('c')")
         }
-        
+
         let snapshot = try dbPool.makeSnapshot()
         try snapshot.read { db in
             XCTAssertEqual(try String.fetchAll(db, sql: "SELECT text FROM items ORDER BY text COLLATE reverse"), ["c", "b", "a"])
         }
     }
-    
+
     func testSnapshotCollations() throws {
         let dbPool = try makeDatabasePool()
         try dbPool.write { db in
@@ -182,7 +183,7 @@ class DatabaseSnapshotTests: GRDBTestCase {
             try db.execute(sql: "INSERT INTO items (text) VALUES ('b')")
             try db.execute(sql: "INSERT INTO items (text) VALUES ('c')")
         }
-        
+
         let snapshot = try dbPool.makeSnapshot()
         let collation = DatabaseCollation("reverse") { (string1, string2) in
             return (string1 == string2) ? .orderedSame : ((string1 < string2) ? .orderedDescending : .orderedAscending)
@@ -192,60 +193,60 @@ class DatabaseSnapshotTests: GRDBTestCase {
             XCTAssertEqual(try String.fetchAll(db, sql: "SELECT text FROM items ORDER BY text COLLATE reverse"), ["c", "b", "a"])
         }
     }
-    
+
     // MARK: - Concurrency
-    
+
     func testDefaultLabel() throws {
         let dbPool = try makeDatabasePool()
-        
+
         let snapshot1 = try dbPool.makeSnapshot()
         snapshot1.unsafeRead { db in
             XCTAssertEqual(db.configuration.label, nil)
-            
+
             // This test CAN break in future releases: the dispatch queue labels
             // are documented to be a debug-only tool.
-            let label = String(utf8String: __dispatch_queue_get_label(nil))
+            let label = String(utf8String: DispatchQueue.main.label)
             XCTAssertEqual(label, "GRDB.DatabasePool.snapshot.1")
         }
-        
+
         let snapshot2 = try dbPool.makeSnapshot()
         snapshot2.unsafeRead { db in
             XCTAssertEqual(db.configuration.label, nil)
-            
+
             // This test CAN break in future releases: the dispatch queue labels
             // are documented to be a debug-only tool.
-            let label = String(utf8String: __dispatch_queue_get_label(nil))
+            let label = String(utf8String: DispatchQueue.main.label)
             XCTAssertEqual(label, "GRDB.DatabasePool.snapshot.2")
         }
     }
-    
+
     func testCustomLabel() throws {
         dbConfiguration.label = "Toreador"
         let dbPool = try makeDatabasePool()
-        
+
         let snapshot1 = try dbPool.makeSnapshot()
         snapshot1.unsafeRead { db in
             XCTAssertEqual(db.configuration.label, "Toreador")
-            
+
             // This test CAN break in future releases: the dispatch queue labels
             // are documented to be a debug-only tool.
-            let label = String(utf8String: __dispatch_queue_get_label(nil))
+            let label = String(utf8String: DispatchQueue.main.label)
             XCTAssertEqual(label, "Toreador.snapshot.1")
         }
-        
+
         let snapshot2 = try dbPool.makeSnapshot()
         snapshot2.unsafeRead { db in
             XCTAssertEqual(db.configuration.label, "Toreador")
-            
+
             // This test CAN break in future releases: the dispatch queue labels
             // are documented to be a debug-only tool.
-            let label = String(utf8String: __dispatch_queue_get_label(nil))
+            let label = String(utf8String: DispatchQueue.main.label)
             XCTAssertEqual(label, "Toreador.snapshot.2")
         }
     }
-    
+
     // MARK: - Checkpoints
-    
+
     func testAutomaticCheckpointDoesNotInvalidateSnapshot() throws {
         let dbPool = try makeDatabasePool()
         let counter = try Counter(dbPool: dbPool)
@@ -260,7 +261,7 @@ class DatabaseSnapshotTests: GRDBTestCase {
         }
         try XCTAssertEqual(snapshot.read(counter.value), 1)
     }
-    
+
     func testPassiveCheckpointDoesNotInvalidateSnapshot() throws {
         let dbPool = try makeDatabasePool()
         let counter = try Counter(dbPool: dbPool)
@@ -271,7 +272,7 @@ class DatabaseSnapshotTests: GRDBTestCase {
         try dbPool.write(counter.increment)
         try XCTAssertEqual(snapshot.read(counter.value), 1)
     }
-    
+
     func testFullCheckpointDoesNotInvalidateSnapshot() throws {
         let dbPool = try makeDatabasePool()
         let counter = try Counter(dbPool: dbPool)
@@ -282,7 +283,7 @@ class DatabaseSnapshotTests: GRDBTestCase {
         try dbPool.write(counter.increment)
         try XCTAssertEqual(snapshot.read(counter.value), 1)
     }
-    
+
     func testRestartCheckpointDoesNotInvalidateSnapshot() throws {
         let dbPool = try makeDatabasePool()
         let counter = try Counter(dbPool: dbPool)
@@ -293,7 +294,7 @@ class DatabaseSnapshotTests: GRDBTestCase {
         try dbPool.write(counter.increment)
         try XCTAssertEqual(snapshot.read(counter.value), 1)
     }
-    
+
     func testTruncateCheckpointDoesNotInvalidateSnapshot() throws {
         let dbPool = try makeDatabasePool()
         let counter = try Counter(dbPool: dbPool)
@@ -304,9 +305,9 @@ class DatabaseSnapshotTests: GRDBTestCase {
         try dbPool.write(counter.increment)
         try XCTAssertEqual(snapshot.read(counter.value), 1)
     }
-    
+
     // MARK: - Schema Cache
-    
+
     func testSnapshotSchemaCache() throws {
         let dbPool = try makeDatabasePool()
         try dbPool.write { db in

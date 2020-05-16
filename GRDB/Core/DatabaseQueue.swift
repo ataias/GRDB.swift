@@ -7,21 +7,21 @@ import UIKit
 /// A DatabaseQueue serializes access to an SQLite database.
 public final class DatabaseQueue: DatabaseWriter {
     private var writer: SerializedDatabase
-    
+
     // MARK: - Configuration
-    
+
     /// The database configuration
     public var configuration: Configuration {
         writer.configuration
     }
-    
+
     /// The path to the database file; it is ":memory:" for in-memory databases.
     public var path: String {
         writer.path
     }
-    
+
     // MARK: - Initializers
-    
+
     /// Opens the SQLite database at path *path*.
     ///
     ///     let dbQueue = try DatabaseQueue(path: "/path/to/database.sqlite")
@@ -38,20 +38,18 @@ public final class DatabaseQueue: DatabaseWriter {
             configuration: configuration,
             schemaCache: DatabaseSchemaCache(),
             defaultLabel: "GRDB.DatabaseQueue")
-        
-	#if os(Linux)
-	// get rid of it
-	#else
+
+        #if canImport(ObjectiveC)
         setupSuspension()
-	#endif
-        
+        #endif
+
         // Be a nice iOS citizen, and don't consume too much memory
         // See https://github.com/groue/GRDB.swift/#memory-management
         #if os(iOS)
         setupMemoryManagement()
         #endif
     }
-    
+
     /// Opens an in-memory SQLite database.
     ///
     ///     let dbQueue = DatabaseQueue()
@@ -67,7 +65,7 @@ public final class DatabaseQueue: DatabaseWriter {
             schemaCache: DatabaseSchemaCache(),
             defaultLabel: "GRDB.DatabaseQueue")
     }
-    
+
     deinit {
         // Undo job done in setupMemoryManagement()
         //
@@ -78,16 +76,16 @@ public final class DatabaseQueue: DatabaseWriter {
 }
 
 extension DatabaseQueue {
-    
+
     // MARK: - Memory management
-    
+
     /// Free as much memory as possible.
     ///
     /// This method blocks the current thread until all database accesses are completed.
     public func releaseMemory() {
         writer.sync { $0.releaseMemory() }
     }
-    
+
     #if os(iOS)
     /// Listens to UIApplicationDidEnterBackgroundNotification and
     /// UIApplicationDidReceiveMemoryWarningNotification in order to release
@@ -109,13 +107,13 @@ extension DatabaseQueue {
             name: UIApplication.didEnterBackgroundNotification,
             object: nil)
     }
-    
+
     @objc
     private func applicationDidEnterBackground(_ notification: NSNotification) {
         guard let application = notification.object as? UIApplication else {
             return
         }
-        
+
         let task: UIBackgroundTaskIdentifier = application.beginBackgroundTask(expirationHandler: nil)
         if task == .invalid {
             // Perform releaseMemory() synchronously.
@@ -128,7 +126,7 @@ extension DatabaseQueue {
             }
         }
     }
-    
+
     @objc
     private func applicationDidReceiveMemoryWarning(_ notification: NSNotification) {
         DispatchQueue.global().async {
@@ -139,26 +137,24 @@ extension DatabaseQueue {
 }
 
 extension DatabaseQueue {
-    
+
     // MARK: - Interrupting Database Operations
-    
+
     public func interrupt() {
         writer.interrupt()
     }
-    
+
     // MARK: - Database Suspension
-    
+
     func suspend() {
         writer.suspend()
     }
-    
+
     func resume() {
         writer.resume()
     }
-    
-    #if os(Linux)
-    // Get rid of that
-    #else
+
+    #if canImport(ObjectiveC)
     private func setupSuspension() {
         if configuration.observesSuspensionNotifications {
             let center = NotificationCenter.default
@@ -175,19 +171,19 @@ extension DatabaseQueue {
         }
     }
     #endif
-    
+
     @objc
     private func suspend(_ notification: Notification) {
         suspend()
     }
-    
+
     @objc
     private func resume(_ notification: Notification) {
         resume()
     }
-    
+
     // MARK: - Reading from Database
-    
+
     /// Synchronously executes a read-only block in a protected dispatch queue,
     /// and returns its result.
     ///
@@ -207,7 +203,7 @@ extension DatabaseQueue {
             try db.readOnly { try block(db) }
         }
     }
-    
+
     /// Asynchronously executes a read-only block in a protected dispatch queue.
     ///
     ///     let players = try dbQueue.asyncRead { dbResult in
@@ -231,14 +227,14 @@ extension DatabaseQueue {
                 block(.failure(error))
                 return
             }
-            
+
             block(.success(db))
-            
+
             // Ignore error because we can not notify it.
             try? db.endReadOnly()
         }
     }
-    
+
     /// :nodoc:
     public func _weakAsyncRead(_ block: @escaping (Result<Database, Error>?) -> Void) {
         writer.weakAsync { db in
@@ -246,21 +242,21 @@ extension DatabaseQueue {
                 block(nil)
                 return
             }
-            
+
             do {
                 try db.beginReadOnly()
             } catch {
                 block(.failure(error))
                 return
             }
-            
+
             block(.success(db))
-            
+
             // Ignore error because we can not notify it.
             try? db.endReadOnly()
         }
     }
-    
+
     /// Synchronously executes a block in a protected dispatch queue, and
     /// returns its result.
     ///
@@ -277,7 +273,7 @@ extension DatabaseQueue {
     public func unsafeRead<T>(_ block: (Database) throws -> T) rethrows -> T {
         try writer.sync(block)
     }
-    
+
     /// Synchronously executes a block in a protected dispatch queue, and
     /// returns its result.
     ///
@@ -292,7 +288,7 @@ extension DatabaseQueue {
     public func unsafeReentrantRead<T>(_ block: (Database) throws -> T) rethrows -> T {
         try writer.reentrantSync(block)
     }
-    
+
     public func concurrentRead<T>(_ block: @escaping (Database) throws -> T) -> DatabaseFuture<T> {
         // DatabaseQueue can't perform parallel reads.
         // Perform a blocking read instead.
@@ -307,7 +303,7 @@ extension DatabaseQueue {
             }
         })
     }
-    
+
     /// Performs the same job as asyncConcurrentRead.
     ///
     /// :nodoc:
@@ -316,23 +312,23 @@ extension DatabaseQueue {
         writer.execute { db in
             // ... and that no transaction is opened.
             GRDBPrecondition(!db.isInsideTransaction, "must not be called from inside a transaction.")
-            
+
             do {
                 try db.beginReadOnly()
             } catch {
                 block(.failure(error))
                 return
             }
-            
+
             block(.success(db))
-            
+
             // Ignore error because we can not notify it.
             try? db.endReadOnly()
         }
     }
-    
+
     // MARK: - Writing in Database
-    
+
     /// Synchronously executes database updates in a protected dispatch queue,
     /// wrapped inside a transaction, and returns the result.
     ///
@@ -369,7 +365,7 @@ extension DatabaseQueue {
             }
         }
     }
-    
+
     /// Synchronously executes database updates in a protected dispatch queue,
     /// outside of any transaction, and returns the result.
     ///
@@ -383,7 +379,7 @@ extension DatabaseQueue {
     public func writeWithoutTransaction<T>(_ updates: (Database) throws -> T) rethrows -> T {
         try writer.sync(updates)
     }
-    
+
     /// Synchronously executes database updates in a protected dispatch queue,
     /// outside of any transaction, and returns the result.
     ///
@@ -397,7 +393,7 @@ extension DatabaseQueue {
     public func barrierWriteWithoutTransaction<T>(_ updates: (Database) throws -> T) rethrows -> T {
         try writer.sync(updates)
     }
-    
+
     /// Synchronously executes database updates in a protected dispatch queue,
     /// outside of any transaction, and returns the result.
     ///
@@ -413,7 +409,7 @@ extension DatabaseQueue {
     public func inDatabase<T>(_ updates: (Database) throws -> T) rethrows -> T {
         try writer.sync(updates)
     }
-    
+
     /// Synchronously executes database updates in a protected dispatch queue, and
     /// returns the result.
     ///
@@ -427,20 +423,20 @@ extension DatabaseQueue {
     public func unsafeReentrantWrite<T>(_ updates: (Database) throws -> T) rethrows -> T {
         try writer.reentrantSync(updates)
     }
-    
+
     /// Asynchronously executes database updates in a protected dispatch queue,
     /// outside of any transaction.
     public func asyncWriteWithoutTransaction(_ updates: @escaping (Database) -> Void) {
         writer.async(updates)
     }
-    
+
     /// :nodoc:
     public func _weakAsyncWriteWithoutTransaction(_ updates: @escaping (Database?) -> Void) {
         writer.weakAsync(updates)
     }
-    
+
     // MARK: - Functions
-    
+
     /// Add or redefine an SQL function.
     ///
     ///     let fn = DatabaseFunction("succ", argumentCount: 1) { dbValues in
@@ -456,14 +452,14 @@ extension DatabaseQueue {
     public func add(function: DatabaseFunction) {
         writer.sync { $0.add(function: function) }
     }
-    
+
     /// Remove an SQL function.
     public func remove(function: DatabaseFunction) {
         writer.sync { $0.remove(function: function) }
     }
-    
+
     // MARK: - Collations
-    
+
     /// Add or redefine a collation.
     ///
     ///     let collation = DatabaseCollation("localized_standard") { (string1, string2) in
@@ -476,14 +472,14 @@ extension DatabaseQueue {
     public func add(collation: DatabaseCollation) {
         writer.sync { $0.add(collation: collation) }
     }
-    
+
     /// Remove a collation.
     public func remove(collation: DatabaseCollation) {
         writer.sync { $0.remove(collation: collation) }
     }
-    
+
     // MARK: - Database Observation
-    
+
     /// :nodoc:
     public func _add<Reducer: _ValueReducer>(
         observation: ValueObservation<Reducer>,
@@ -499,7 +495,7 @@ extension DatabaseQueue {
                 onError: onError,
                 onChange: onChange)
         }
-        
+
         let observer = _addWriteOnly(
             observation: observation,
             scheduling: scheduler,
