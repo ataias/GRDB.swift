@@ -2,6 +2,7 @@ import XCTest
 import GRDB
 import Foundation
 
+#if !os(Linux)
 class FoundationNSNumberTests: GRDBTestCase {
 
     func testNSNumberDatabaseValueToSwiftType() {
@@ -134,3 +135,5 @@ class FoundationNSNumberTests: GRDBTestCase {
     }
 
 }
+
+#endif

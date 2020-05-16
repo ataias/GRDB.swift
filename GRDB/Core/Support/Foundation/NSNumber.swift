@@ -11,7 +11,7 @@ private let integerRoundingBehavior = NSDecimalNumberHandler(
 
 /// NSNumber adopts DatabaseValueConvertible
 extension NSNumber: DatabaseValueConvertible {
-    
+
     /// Returns a value that can be stored in the database.
     public var databaseValue: DatabaseValue {
         // Don't lose precision: store integers that fits in Int64 as Int64
@@ -22,7 +22,7 @@ extension NSNumber: DatabaseValueConvertible {
         {
             return int64Value.databaseValue
         }
-        
+
         switch String(cString: objCType) {
         case "c":
             return Int64(int8Value).databaseValue
@@ -63,7 +63,7 @@ extension NSNumber: DatabaseValueConvertible {
             fatalError("DatabaseValueConvertible: Unsupported NSNumber type: \(objCType)")
         }
     }
-    
+
     /// Returns an NSNumber initialized from *dbValue*, if possible.
     public static func fromDatabaseValue(_ dbValue: DatabaseValue) -> Self? {
         switch dbValue.storage {

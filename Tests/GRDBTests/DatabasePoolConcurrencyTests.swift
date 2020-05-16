@@ -1270,8 +1270,8 @@ class DatabasePoolConcurrencyTests: GRDBTestCase {
 
     // MARK: - Concurrent opening
 
-    #if !os(Linux)
     func testConcurrentOpening() throws {
+        #if !os(Linux)
         for _ in 0..<50 {
             let dbDirectoryName = "DatabasePoolConcurrencyTests-\(ProcessInfo.processInfo.globallyUniqueString)"
             let directoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
@@ -1295,8 +1295,8 @@ class DatabasePoolConcurrencyTests: GRDBTestCase {
                 XCTAssert(poolError ?? coordinatorError == nil)
             }
         }
+        #endif
     }
-    #endif
 
     // MARK: - NSFileCoordinator sample code tests
 

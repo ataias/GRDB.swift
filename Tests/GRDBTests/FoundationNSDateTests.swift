@@ -2,6 +2,7 @@ import XCTest
 import GRDB
 import Foundation
 
+#if !os(Linux)
 class FoundationNSDateTests : GRDBTestCase {
 
     override func setup(_ dbWriter: DatabaseWriter) throws {
@@ -241,3 +242,4 @@ class FoundationNSDateTests : GRDBTestCase {
         }
     }
 }
+#endif

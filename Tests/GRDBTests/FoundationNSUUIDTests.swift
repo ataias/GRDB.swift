@@ -3,6 +3,7 @@ import GRDB
 import Foundation
 
 class FoundationNSUUIDTests: GRDBTestCase {
+    #if !os(Linux)
     private func assert(_ value: DatabaseValueConvertible?, isDecodedAs expectedUUID: NSUUID?) throws {
         try makeDatabaseQueue().read { db in
             if let expectedUUID = expectedUUID {
@@ -50,4 +51,5 @@ class FoundationNSUUIDTests: GRDBTestCase {
         try assert("abcdefghijklmno".data(using: .utf8)!, isDecodedAs: nil)
         try assert("abcdefghijklmnopq".data(using: .utf8)!, isDecodedAs: nil)
     }
+    #endif
 }
